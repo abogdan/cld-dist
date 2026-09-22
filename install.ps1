@@ -32,4 +32,19 @@ if (($userPath -split ';') -notcontains $InstallDir) {
   Write-Host "added $InstallDir to your user PATH (restart the terminal)"
 }
 Write-Host "installed cld to $InstallDir\cld.exe"
-Write-Host 'enable auto-switching: add to $PROFILE ->  cld init pwsh | Out-String | Invoke-Expression'
+
+# MemPalace is cld's default memory (per account, private); CLD_NO_MEMPALACE=1 skips it.
+if (-not $env:CLD_NO_MEMPALACE -and -not (Get-Command mempalace-mcp -ErrorAction SilentlyContinue)) {
+  Write-Host "installing MemPalace (cld's default memory)..."
+  try {
+    if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+      powershell -ExecutionPolicy ByPass -NoProfile -Command "irm https://astral.sh/uv/install.ps1 | iex"
+      $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $env:Path
+    }
+    uv tool install mempalace
+    uv tool update-shell | Out-Null
+  } catch {
+    Write-Host "MemPalace could not be installed; cld retries from the dashboard (Memory)"
+  }
+}
+Write-Host 'then run: cld   (it sets up the shell integration for you: Settings -> Shell integration)'

@@ -48,13 +48,21 @@ chmod +x "${tmp}/cld"
 mv "${tmp}/cld" "${INSTALL_DIR}/cld"
 echo "installed cld to ${INSTALL_DIR}/cld"
 echo
-case "$(basename "${SHELL:-sh}")" in
-  zsh) rc='eval "$(cld init zsh)"   # in ~/.zshrc' ;;
-  fish) rc='cld init fish | source   # in ~/.config/fish/config.fish' ;;
-  *) rc='eval "$(cld init bash)"   # in ~/.bashrc' ;;
-esac
+# MemPalace is cld's default memory (per account, private); CLD_NO_MEMPALACE=1 skips it.
+if [ -z "${CLD_NO_MEMPALACE:-}" ] && ! command -v mempalace-mcp >/dev/null 2>&1; then
+  echo "installing MemPalace (cld's default memory)…"
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    PATH="$HOME/.local/bin:$PATH"
+  fi
+  if uv tool install mempalace; then
+    uv tool update-shell >/dev/null 2>&1 || true
+  else
+    echo "MemPalace could not be installed; cld retries from the dashboard (Memory)" >&2
+  fi
+fi
+echo
 if ! echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then
   echo "add ${INSTALL_DIR} to your PATH"
 fi
-echo "enable auto-switching:  $rc"
-echo "then run: cld"
+echo "then run: cld   (it sets up the shell integration for you: Settings → Shell integration)"
