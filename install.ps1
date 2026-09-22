@@ -21,7 +21,11 @@ try {
   if (-not $want -or $want -ne $got) { throw "checksum mismatch for ${asset}: expected '$want', got $got" }
 
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-  Move-Item -Force "$tmp\cld.exe" (Join-Path $InstallDir 'cld.exe')
+  $dest = Join-Path $InstallDir 'cld.exe'
+  # A running cld.exe (daemon, memory server) cannot be replaced, only renamed;
+  # cld removes the old copy once nothing uses it.
+  if (Test-Path $dest) { Rename-Item $dest "cld.exe.old-$([DateTime]::UtcNow.Ticks)" }
+  Move-Item -Force "$tmp\cld.exe" $dest
 } finally {
   Remove-Item -Recurse -Force $tmp
 }
@@ -36,13 +40,14 @@ Write-Host "installed cld to $InstallDir\cld.exe"
 # MemPalace is cld's default memory (per account, private); CLD_NO_MEMPALACE=1 skips it.
 if (-not $env:CLD_NO_MEMPALACE -and -not (Get-Command mempalace-mcp -ErrorAction SilentlyContinue)) {
   Write-Host "installing MemPalace (cld's default memory)..."
+  $env:UV_NO_MODIFY_PATH = '1'
   try {
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
       powershell -ExecutionPolicy ByPass -NoProfile -Command "irm https://astral.sh/uv/install.ps1 | iex"
       $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $env:Path
     }
     uv tool install mempalace
-    uv tool update-shell | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "uv tool install mempalace failed" }
   } catch {
     Write-Host "MemPalace could not be installed; cld retries from the dashboard (Memory)"
   }

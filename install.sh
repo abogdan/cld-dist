@@ -51,14 +51,16 @@ echo
 # MemPalace is cld's default memory (per account, private); CLD_NO_MEMPALACE=1 skips it.
 if [ -z "${CLD_NO_MEMPALACE:-}" ] && ! command -v mempalace-mcp >/dev/null 2>&1; then
   echo "installing MemPalace (cld's default memory)…"
+  # uv never edits startup files here; cld's shell integration handles PATH-free lookups.
+  export UV_NO_MODIFY_PATH=1
   if ! command -v uv >/dev/null 2>&1; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
     PATH="$HOME/.local/bin:$PATH"
   fi
-  if uv tool install mempalace; then
-    uv tool update-shell >/dev/null 2>&1 || true
-  else
+  if ! uv tool install mempalace; then
     echo "MemPalace could not be installed; cld retries from the dashboard (Memory)" >&2
+  elif ! command -v mempalace-mcp >/dev/null 2>&1; then
+    echo "add $(uv tool dir --bin 2>/dev/null || echo ~/.local/bin) to your PATH for MemPalace" >&2
   fi
 fi
 echo
